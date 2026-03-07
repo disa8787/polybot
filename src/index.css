@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ensure safe area insets for Telegram fullscreen */
+body {
+  @apply bg-[#0f0f0f] text-white;
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  min-height: 100dvh;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+/* Prevent pull-to-refresh and overscroll on mobile */
+body {
+  overscroll-behavior: none;
+}
