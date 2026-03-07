@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { BarChart3, Clock, History } from 'lucide-react'
 import { Header } from './components/Header'
 import { BTCChart } from './components/BTCChart'
@@ -6,15 +6,26 @@ import { BettingCard } from './components/BettingCard'
 import { ActiveBets } from './components/ActiveBets'
 import { History as HistoryTab } from './components/History'
 import { LivePriceDisplay } from './components/LivePriceDisplay'
+import { ActivityFeed } from './components/ActivityFeed'
 import { useApp } from './contexts/AppContext'
 import { usePriceStream } from './hooks/usePriceStream'
 import { useRoundLogic } from './hooks/useRoundLogic'
+import { useActivityFeed } from './hooks/useActivityFeed'
 
 type Tab = 'trade' | 'active' | 'history'
 
 function App() {
   const { onRoundEnd, activeBets, pendingBets } = useApp()
+  const { items: activityItems, triggerActivityBatch } = useActivityFeed()
   const [tab, setTab] = useState<Tab>('trade')
+
+  const handleRoundEnd = useCallback(
+    (closePrice: number, newMark: number) => {
+      onRoundEnd(closePrice, newMark)
+      triggerActivityBatch()
+    },
+    [onRoundEnd, triggerActivityBatch]
+  )
 
   const {
     initialData,
@@ -23,7 +34,7 @@ function App() {
     isConnected,
   } = usePriceStream()
 
-  const { secondsLeft, mark } = useRoundLogic(livePriceRef, onRoundEnd, isConnected)
+  const { secondsLeft, mark } = useRoundLogic(livePriceRef, handleRoundEnd, isConnected)
 
   const totalBets = activeBets.length + pendingBets.length
 
@@ -52,6 +63,7 @@ function App() {
             secondsLeft={secondsLeft}
             isConnected={isConnected}
           />
+          <ActivityFeed items={activityItems} />
         </div>
       )}
       {tab === 'active' && (
