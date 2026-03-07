@@ -1,56 +1,52 @@
 import { ChevronUp, ChevronDown, Percent, Wallet } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useApp } from '../contexts/AppContext'
-import { useCandleCountdown } from '../hooks/useCandleCountdown'
 
 interface BettingCardProps {
-  entryPrice: number
+  mark: number | null
+  secondsLeft: number
   isConnected: boolean
 }
 
-export function BettingCard({ entryPrice, isConnected }: BettingCardProps) {
-  const { balance, placeBet } = useApp()
-  const { secondsLeft, closeTime } = useCandleCountdown()
+export function BettingCard({ mark, secondsLeft, isConnected }: BettingCardProps) {
+  const { balance, placePendingBet } = useApp()
   const [amount, setAmount] = useState('')
 
   const betAmount = parseFloat(amount) || 0
-  const canBet = isConnected && betAmount > 0 && betAmount <= balance && secondsLeft > 10
+  const canBet = isConnected && betAmount > 0 && betAmount <= balance
+
+  const countdownStr = `${String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:${String(secondsLeft % 60).padStart(2, '0')}`
 
   const handleYes = useCallback(() => {
-    if (!canBet) return
-    const ok = placeBet({
+    if (!canBet || mark == null) return
+    const ok = placePendingBet({
       type: 'yes',
       amount: betAmount,
-      entryPrice,
-      candleCloseTime: closeTime,
+      mark,
       placedAt: Date.now(),
     })
     if (ok) setAmount('')
-  }, [canBet, betAmount, entryPrice, closeTime, placeBet])
+  }, [canBet, betAmount, mark, placePendingBet])
 
   const handleNo = useCallback(() => {
-    if (!canBet) return
-    const ok = placeBet({
+    if (!canBet || mark == null) return
+    const ok = placePendingBet({
       type: 'no',
       amount: betAmount,
-      entryPrice,
-      candleCloseTime: closeTime,
+      mark,
       placedAt: Date.now(),
     })
     if (ok) setAmount('')
-  }, [canBet, betAmount, entryPrice, closeTime, placeBet])
+  }, [canBet, betAmount, mark, placePendingBet])
 
   return (
     <div className="rounded-xl border border-gray-800 bg-[#141414] p-4 space-y-3">
       <p className="text-sm font-medium text-gray-400">
-        Will BTC close <span className="text-white font-semibold">higher</span> than current price in 5 minutes?
+        Will BTC close <span className="text-white font-semibold">higher</span> than the Mark in the next round?
       </p>
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <span>Closes in</span>
-        <span className="font-mono font-semibold text-amber-500">
-          {String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:{String(secondsLeft % 60).padStart(2, '0')}
-        </span>
-      </div>
+      <p className="text-xs text-amber-500 font-medium">
+        Predict Next Round · Starts in {countdownStr}
+      </p>
 
       <div className="relative">
         <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />

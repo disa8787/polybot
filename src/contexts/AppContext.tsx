@@ -1,40 +1,70 @@
 import React, { createContext, useCallback, useContext, useReducer } from 'react'
-import type { ActiveBet, ResolvedBet } from '../types'
+import type { ActiveBet, PendingBet, ResolvedBet } from '../types'
 
 const INITIAL_BALANCE = 1000
 const ODDS_MULTIPLIER = 1.9
 
 type AppState = {
   balance: number
+  pendingBets: PendingBet[]
   activeBets: ActiveBet[]
   history: ResolvedBet[]
 }
 
 type Action =
-  | { type: 'PLACE_BET'; payload: ActiveBet }
-  | { type: 'RESOLVE_BET'; payload: { bet: ActiveBet; closePrice: number } }
+  | { type: 'PLACE_PENDING_BET'; payload: PendingBet }
+  | { type: 'ROUND_END'; payload: { closePrice: number; newMark: number } }
   | { type: 'ADD_TO_HISTORY'; payload: ResolvedBet }
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
-    case 'PLACE_BET': {
+    case 'PLACE_PENDING_BET': {
       const bet = action.payload
       const newBalance = state.balance - bet.amount
       if (newBalance < 0) return state
       return {
         ...state,
         balance: newBalance,
-        activeBets: [...state.activeBets, bet],
+        pendingBets: [...state.pendingBets, bet],
       }
     }
-    case 'RESOLVE_BET': {
-      const { bet, closePrice } = action.payload
-      const won = bet.type === 'yes' ? closePrice > bet.entryPrice : closePrice <= bet.entryPrice
-      const payout = won ? bet.amount * ODDS_MULTIPLIER : 0
+    case 'ROUND_END': {
+      const { closePrice, newMark } = action.payload
+      // Resolve active bets (compare close price to round's Mark)
+      let balance = state.balance
+      const resolved: ResolvedBet[] = []
+
+      for (const bet of state.activeBets) {
+        const won = bet.type === 'yes' ? closePrice > bet.mark : closePrice <= bet.mark
+        const payout = won ? bet.amount * ODDS_MULTIPLIER : 0
+        balance += payout
+        resolved.push({
+          id: bet.id,
+          type: bet.type,
+          amount: bet.amount,
+          mark: bet.mark,
+          closePrice,
+          won,
+          payout,
+          resolvedAt: Date.now(),
+        })
+      }
+
+      // Move pending → active for the NEW round (newMark = strike for this round)
+      const activeBets: ActiveBet[] = state.pendingBets.map((p) => ({
+        id: p.id,
+        type: p.type,
+        amount: p.amount,
+        mark: newMark,
+        placedAt: p.placedAt,
+      }))
+
       return {
         ...state,
-        balance: state.balance + payout,
-        activeBets: state.activeBets.filter((b) => b.id !== bet.id),
+        balance,
+        activeBets,
+        pendingBets: [],
+        history: [...resolved, ...state.history],
       }
     }
     case 'ADD_TO_HISTORY': {
@@ -48,12 +78,14 @@ function reducer(state: AppState, action: Action): AppState {
   }
 }
 
+/** When round ends, we need to set the mark on the newly activated bets */
 type AppContextValue = {
   balance: number
+  pendingBets: PendingBet[]
   activeBets: ActiveBet[]
   history: ResolvedBet[]
-  placeBet: (bet: Omit<ActiveBet, 'id'>) => boolean
-  resolveBet: (bet: ActiveBet, closePrice: number) => void
+  placePendingBet: (bet: Omit<PendingBet, 'id'>) => boolean
+  onRoundEnd: (closePrice: number, newMark: number) => void
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -61,44 +93,31 @@ const AppContext = createContext<AppContextValue | null>(null)
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, {
     balance: INITIAL_BALANCE,
+    pendingBets: [],
     activeBets: [],
     history: [],
   })
 
-  const placeBet = useCallback((bet: Omit<ActiveBet, 'id'>): boolean => {
+  const placePendingBet = useCallback((bet: Omit<PendingBet, 'id'>): boolean => {
     if (state.balance < bet.amount) return false
     const id = `bet_${Date.now()}_${Math.random().toString(36).slice(2)}`
-    dispatch({ type: 'PLACE_BET', payload: { ...bet, id } })
+    dispatch({ type: 'PLACE_PENDING_BET', payload: { ...bet, id } })
     return true
   }, [state.balance])
 
-  const resolveBet = useCallback((bet: ActiveBet, closePrice: number) => {
-    const won = bet.type === 'yes' ? closePrice > bet.entryPrice : closePrice <= bet.entryPrice
-    const payout = won ? bet.amount * ODDS_MULTIPLIER : 0
-    dispatch({ type: 'RESOLVE_BET', payload: { bet, closePrice } })
-    dispatch({
-      type: 'ADD_TO_HISTORY',
-      payload: {
-        id: bet.id,
-        type: bet.type,
-        amount: bet.amount,
-        entryPrice: bet.entryPrice,
-        closePrice,
-        won,
-        payout,
-        resolvedAt: Date.now(),
-      },
-    })
+  const onRoundEnd = useCallback((closePrice: number, newMark: number) => {
+    dispatch({ type: 'ROUND_END', payload: { closePrice, newMark } })
   }, [])
 
   return (
     <AppContext.Provider
       value={{
         balance: state.balance,
+        pendingBets: state.pendingBets,
         activeBets: state.activeBets,
         history: state.history,
-        placeBet,
-        resolveBet,
+        placePendingBet,
+        onRoundEnd,
       }}
     >
       {children}

@@ -1,49 +1,39 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { BarChart3, Clock, History } from 'lucide-react'
 import { Header } from './components/Header'
 import { BTCChart } from './components/BTCChart'
 import { BettingCard } from './components/BettingCard'
 import { ActiveBets } from './components/ActiveBets'
 import { History as HistoryTab } from './components/History'
+import { LivePriceDisplay } from './components/LivePriceDisplay'
 import { useApp } from './contexts/AppContext'
-import { useBinanceWebSocket } from './hooks/useBinanceWebSocket'
+import { usePriceStream } from './hooks/usePriceStream'
+import { useRoundLogic } from './hooks/useRoundLogic'
 
 type Tab = 'trade' | 'active' | 'history'
 
 function App() {
-  const { balance, activeBets, resolveBet } = useApp()
+  const { onRoundEnd, activeBets, pendingBets } = useApp()
   const [tab, setTab] = useState<Tab>('trade')
 
-  const onCandleClose = useCallback(
-    (closePrice: number, closeTimeMs: number) => {
-      activeBets.forEach((bet) => {
-        if (Math.abs(bet.candleCloseTime - closeTimeMs) < 60_000) {
-          resolveBet(bet, closePrice)
-        }
-      })
-    },
-    [activeBets, resolveBet]
-  )
+  const {
+    initialData,
+    subscribeToTick,
+    livePriceRef,
+    isConnected,
+  } = usePriceStream()
 
-  const { candles, livePrice, isConnected } = useBinanceWebSocket(onCandleClose)
-  const entryPrice = livePrice ?? (candles[candles.length - 1]?.close ?? 0)
+  const { secondsLeft, mark } = useRoundLogic(livePriceRef, onRoundEnd, isConnected)
+
+  const totalBets = activeBets.length + pendingBets.length
 
   return (
     <div className="min-h-dvh flex flex-col bg-[#0f0f0f]">
-      <Header balance={balance} />
-
+      <HeaderWithBalance />
       {/* Current price banner */}
       <div className="px-4 py-2 flex items-center justify-between bg-[#141414] border-b border-gray-800">
         <span className="text-sm text-gray-400">BTC/USD</span>
-        <span
-          className={`text-lg font-bold font-mono tabular-nums ${
-            livePrice ? 'text-white' : 'text-gray-500'
-          }`}
-        >
-          {livePrice != null
-            ? `$${livePrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-            : 'Loading...'}
-        </span>
+        <LivePriceDisplay livePriceRef={livePriceRef} className="text-lg font-bold font-mono tabular-nums text-white" />
         {!isConnected && (
           <span className="text-xs text-amber-500">Reconnecting...</span>
         )}
@@ -51,13 +41,22 @@ function App() {
 
       {tab === 'trade' && (
         <div className="flex-1 overflow-auto px-4 py-3 space-y-4">
-          <BTCChart candles={candles} livePrice={livePrice} height={220} />
-          <BettingCard entryPrice={entryPrice} isConnected={isConnected} />
+          <BTCChart
+            initialData={initialData}
+            subscribeToTick={subscribeToTick}
+            mark={mark}
+            height={220}
+          />
+          <BettingCard
+            mark={mark}
+            secondsLeft={secondsLeft}
+            isConnected={isConnected}
+          />
         </div>
       )}
       {tab === 'active' && (
         <div className="flex-1 overflow-auto px-4 py-3">
-          <ActiveBets />
+          <ActiveBets secondsLeft={secondsLeft} />
         </div>
       )}
       {tab === 'history' && (
@@ -73,14 +72,14 @@ function App() {
           onClick={() => setTab('trade')}
           icon={BarChart3}
           label="Trade"
-          badge={activeBets.length > 0 ? activeBets.length : undefined}
+          badge={totalBets > 0 ? totalBets : undefined}
         />
         <TabButton
           active={tab === 'active'}
           onClick={() => setTab('active')}
           icon={Clock}
           label="Active"
-          badge={activeBets.length > 0 ? activeBets.length : undefined}
+          badge={totalBets > 0 ? totalBets : undefined}
         />
         <TabButton
           active={tab === 'history'}
@@ -91,6 +90,11 @@ function App() {
       </nav>
     </div>
   )
+}
+
+function HeaderWithBalance() {
+  const { balance } = useApp()
+  return <Header balance={balance} />
 }
 
 function TabButton({

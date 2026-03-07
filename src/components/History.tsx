@@ -33,7 +33,7 @@ export function History() {
             )}
             <div>
               <p className="font-semibold text-sm">
-                {bet.type === 'yes' ? 'Yes' : 'No'} @ ${bet.entryPrice.toLocaleString()}
+                {bet.type === 'yes' ? 'Yes' : 'No'} @ Mark ${bet.mark.toLocaleString()}
               </p>
               <p className="text-xs text-gray-500">
                 Closed: ${bet.closePrice.toLocaleString()} · {bet.won ? '+' : '-'}${Math.abs(bet.payout - (bet.won ? bet.amount : 0)).toFixed(2)}

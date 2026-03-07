@@ -1,17 +1,30 @@
-import { createChart, IChartApi, ISeriesApi } from 'lightweight-charts'
+/**
+ * Polymarket-style dynamic area chart with gradient fill.
+ * Uses AreaSeries instead of candlesticks; subscribes to price stream via refs
+ * to avoid re-renders on every tick.
+ */
+
+import { createChart, IChartApi, IPriceLine, ISeriesApi } from 'lightweight-charts'
 import { useCallback, useEffect, useRef } from 'react'
-import type { Candlestick } from '../types'
+import type { ChartTick } from '../hooks/usePriceStream'
 
 interface BTCChartProps {
-  candles: Candlestick[]
-  livePrice?: number | null
+  initialData: ChartTick[]
+  subscribeToTick: (cb: (tick: ChartTick) => void) => () => void
+  mark: number | null
   height?: number
 }
 
-export function BTCChart({ candles, height = 220 }: BTCChartProps) {
+export function BTCChart({
+  initialData,
+  subscribeToTick,
+  mark,
+  height = 220,
+}: BTCChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
-  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
+  const areaSeriesRef = useRef<ISeriesApi<'Area'> | null>(null)
+  const markLineRef = useRef<IPriceLine | null>(null)
 
   const initChart = useCallback(() => {
     if (!containerRef.current || containerRef.current.children.length) return
@@ -34,7 +47,7 @@ export function BTCChart({ candles, height = 220 }: BTCChartProps) {
       timeScale: {
         borderColor: '#374151',
         timeVisible: true,
-        secondsVisible: false,
+        secondsVisible: true,
       },
       crosshair: {
         vertLine: { color: '#4b5563' },
@@ -42,15 +55,17 @@ export function BTCChart({ candles, height = 220 }: BTCChartProps) {
       },
     })
 
-    const candleSeries = chart.addCandlestickSeries({
-      upColor: '#22c55e',
-      downColor: '#ef4444',
-      borderUpColor: '#22c55e',
-      borderDownColor: '#ef4444',
+    const areaSeries = chart.addAreaSeries({
+      lineColor: '#22c55e',
+      topColor: 'rgba(34, 197, 94, 0.4)',
+      bottomColor: 'rgba(34, 197, 94, 0)',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
     })
 
     chartRef.current = chart
-    candleSeriesRef.current = candleSeries
+    areaSeriesRef.current = areaSeries
 
     const handleResize = () => {
       if (containerRef.current && chartRef.current) {
@@ -67,23 +82,50 @@ export function BTCChart({ candles, height = 220 }: BTCChartProps) {
       if (chartRef.current) {
         chartRef.current.remove()
         chartRef.current = null
-        candleSeriesRef.current = null
+        areaSeriesRef.current = null
+        markLineRef.current = null
       }
       cleanup?.()
     }
   }, [initChart])
 
+  // Set initial data (lightweight-charts uses UTCTimestamp = number)
   useEffect(() => {
-    if (!candleSeriesRef.current || !candles.length) return
-    const data = candles.map((c) => ({
-      time: c.time as any,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-    }))
-    candleSeriesRef.current.setData(data)
-  }, [candles])
+    if (!areaSeriesRef.current || !initialData.length) return
+    areaSeriesRef.current.setData(initialData as any)
+  }, [initialData])
+
+  // Subscribe to live ticks (no state = no re-renders)
+  useEffect(() => {
+    const unsub = subscribeToTick((tick) => {
+      areaSeriesRef.current?.update(tick as any)
+    })
+    return unsub
+  }, [subscribeToTick])
+
+  // Update Mark price line
+  useEffect(() => {
+    const series = areaSeriesRef.current
+    if (!series) return
+
+    if (mark != null && mark > 0) {
+      if (markLineRef.current) {
+        markLineRef.current.applyOptions({ price: mark })
+      } else {
+        markLineRef.current = series.createPriceLine({
+          price: mark,
+          color: '#f59e0b',
+          lineWidth: 2,
+          lineStyle: 2, // dashed
+          axisLabelVisible: true,
+          title: 'Mark',
+        })
+      }
+    } else if (markLineRef.current) {
+      series.removePriceLine(markLineRef.current)
+      markLineRef.current = null
+    }
+  }, [mark])
 
   return (
     <div className="relative rounded-xl overflow-hidden bg-[#0f0f0f] border border-gray-800">
