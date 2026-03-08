@@ -49,8 +49,10 @@ export function TerminalDashboard() {
       : 0
 
   return (
-    <div className="min-h-dvh flex flex-col bg-black text-gray-500">
-      <Header balance={balance} onDeposit={() => setShowDeposit(true)} />
+    <div className="h-dvh flex flex-col overflow-hidden bg-black text-gray-500">
+      <header className="shrink-0">
+        <Header balance={balance} onDeposit={() => setShowDeposit(true)} />
+      </header>
       {showDeposit && (
         <DepositModal
           onClose={() => setShowDeposit(false)}
@@ -62,7 +64,7 @@ export function TerminalDashboard() {
       )}
 
       {/* Top Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-black">
+      <div className="flex shrink-0 items-center justify-between px-4 py-2 border-b border-gray-800 bg-black">
         <span className="text-sm font-mono text-cyan-400">
           POLYMARKET ARB // RUST ENGINE V0.4.1
         </span>
@@ -70,7 +72,7 @@ export function TerminalDashboard() {
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-3 gap-4 px-4 py-3 border-b border-gray-800 bg-black">
+      <div className="grid shrink-0 grid-cols-3 gap-4 px-4 py-3 border-b border-gray-800 bg-black">
         <div>
           <div className="text-[10px] font-mono text-gray-500 uppercase tracking-wider mb-0.5">
             BALANCE
@@ -105,13 +107,13 @@ export function TerminalDashboard() {
       </div>
 
       {/* Main Grid */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 flex min-h-0">
-          <div className="w-[65%] min-w-0 flex flex-col border-r border-gray-800">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <div className="flex min-h-0 w-[65%] min-w-0 flex-col overflow-hidden border-r border-gray-800">
             <LiveFeed logs={consoleLogs} />
           </div>
 
-          <div className="w-[35%] flex flex-col border-gray-800">
+          <div className="flex min-h-0 w-[35%] flex-col overflow-hidden border-gray-800">
             <div className="border-b border-gray-800 p-3">
               <div className="text-xs font-mono text-gray-500 mb-2">SESSION</div>
               <div className="space-y-1 text-xs font-mono">
@@ -139,7 +141,7 @@ export function TerminalDashboard() {
         </div>
 
         {/* Equity Curve */}
-        <div className="h-[150px] border-t border-gray-800 p-2">
+        <div className="shrink-0 border-t border-gray-800 p-2" style={{ height: 150 }}>
           <EquityChart
           data={equityData}
           sessionStartingBalance={sessionStartingBalance}
