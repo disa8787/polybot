@@ -1,8 +1,26 @@
-import { Trophy, XCircle } from 'lucide-react'
+import { Trophy, XCircle, Share2 } from 'lucide-react'
+import { useState } from 'react'
 import { useApp } from '../contexts/AppContext'
+import { computePNLStats } from '../lib/pnlStats'
+import { PNLModal } from './PNLModal'
+import type { ResolvedBet } from '../types'
 
 export function History() {
   const { history } = useApp()
+  const [showPNLModal, setShowPNLModal] = useState(false)
+  const [highlightedTrade, setHighlightedTrade] = useState<ResolvedBet | null>(null)
+
+  const stats = computePNLStats(history)
+
+  const openOverallPNL = () => {
+    setHighlightedTrade(null)
+    setShowPNLModal(true)
+  }
+
+  const openTradePNL = (bet: ResolvedBet) => {
+    setHighlightedTrade(bet)
+    setShowPNLModal(true)
+  }
 
   if (!history.length) {
     return (
@@ -16,6 +34,23 @@ export function History() {
 
   return (
     <div className="space-y-3">
+      <button
+        type="button"
+        onClick={openOverallPNL}
+        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-gray-700 bg-[#141414] text-emerald-400 hover:bg-[#1a1a1a] transition-colors"
+      >
+        <Share2 className="w-4 h-4" />
+        <span className="font-medium">Share PNL</span>
+      </button>
+
+      {showPNLModal && (
+        <PNLModal
+          stats={stats}
+          highlightedTrade={highlightedTrade}
+          onClose={() => setShowPNLModal(false)}
+        />
+      )}
+
       {history.map((bet) => (
         <div
           key={bet.id}
@@ -40,11 +75,21 @@ export function History() {
               </p>
             </div>
           </div>
-          <div className="text-right">
-            <p className={`font-bold ${bet.won ? 'text-emerald-400' : 'text-red-400'}`}>
-              {bet.won ? '+' : ''}${(bet.payout - (bet.won ? bet.amount : 0)).toFixed(2)}
-            </p>
-            <p className="text-xs text-gray-500">{bet.won ? 'Win' : 'Loss'}</p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openTradePNL(bet)}
+              className="p-1.5 rounded-lg text-gray-500 hover:text-emerald-400 hover:bg-gray-700/50"
+              aria-label="Share this trade"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+            <div className="text-right">
+              <p className={`font-bold ${bet.won ? 'text-emerald-400' : 'text-red-400'}`}>
+                {bet.won ? '+' : ''}${(bet.payout - (bet.won ? bet.amount : 0)).toFixed(2)}
+              </p>
+              <p className="text-xs text-gray-500">{bet.won ? 'Win' : 'Loss'}</p>
+            </div>
           </div>
         </div>
       ))}
