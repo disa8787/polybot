@@ -6,10 +6,12 @@ interface LiveFeedProps {
 }
 
 const TAG_COLORS: Record<LogTag, string> = {
-  INFO: 'text-cyan-400',
+  INFO: 'text-gray-500',
   SCAN: 'text-cyan-400',
-  OK: 'text-green-500',
   EDGE: 'text-yellow-500',
+  EXEC: 'text-amber-500',
+  WIN: 'text-green-400', /* Neon green */
+  LOSS: 'text-red-500',
   ERR: 'text-red-500',
 }
 
@@ -32,13 +34,13 @@ export function LiveFeed({ logs }: LiveFeedProps) {
           logs.map((log) => (
             <div
               key={log.id}
-              className="flex gap-2 py-0.5 text-gray-500"
+              className="flex gap-2 py-0.5 items-baseline"
             >
-              <span className="text-gray-600 shrink-0">{log.timestamp}</span>
-              <span className={`shrink-0 ${TAG_COLORS[log.tag]}`}>
+              <span className="text-gray-600 shrink-0 font-mono text-xs">{log.timestamp}</span>
+              <span className={`shrink-0 font-mono text-xs ${TAG_COLORS[log.tag]}`}>
                 [{log.tag}]
               </span>
-              <span className="text-gray-400 break-all">{log.message}</span>
+              <span className="text-gray-400 break-all font-mono text-xs">{log.message}</span>
             </div>
           ))
         )}
