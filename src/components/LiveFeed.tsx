@@ -6,12 +6,10 @@ interface LiveFeedProps {
 }
 
 const TAG_COLORS: Record<LogTag, string> = {
-  INFO: 'text-gray-500',
-  SCAN: 'text-cyan-400',
-  EDGE: 'text-yellow-500',
+  INFO: 'text-cyan-400',
   EXEC: 'text-amber-500',
-  WIN: 'text-green-400', /* Neon green */
-  LOSS: 'text-red-500',
+  FILLED: 'text-green-500',
+  SLIPPED: 'text-red-500',
   ERR: 'text-red-500',
 }
 
