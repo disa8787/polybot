@@ -64,7 +64,7 @@ function App() {
       </div>
 
       {tab === 'trade' && (
-        <div className="flex-1 overflow-auto px-4 py-3 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-3 pb-[calc(5rem+env(safe-area-inset-bottom))] space-y-4">
           <div className="flex items-center justify-end">
             <TimeframeToggle value={timeframe} onChange={setTimeframe} />
           </div>
@@ -84,18 +84,18 @@ function App() {
         </div>
       )}
       {tab === 'active' && (
-        <div className="flex-1 overflow-auto px-4 py-3">
+        <div className="flex-1 overflow-y-auto px-4 py-3 pb-[calc(5rem+env(safe-area-inset-bottom))]">
           <ActiveBets secondsLeft={secondsLeft} />
         </div>
       )}
       {tab === 'history' && (
-        <div className="flex-1 overflow-auto px-4 py-3">
+        <div className="flex-1 overflow-y-auto px-4 py-3 pb-[calc(5rem+env(safe-area-inset-bottom))]">
           <HistoryTab />
         </div>
       )}
 
-      {/* Bottom tabs */}
-      <nav className="flex border-t border-gray-800 bg-[#0f0f0f] safe-area-pb">
+      {/* Fixed bottom navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-gray-800 bg-[#0f0f0f] shadow-[0_-4px_20px_rgba(0,0,0,0.4)] pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <TabButton
           active={tab === 'trade'}
           onClick={() => setTab('trade')}
