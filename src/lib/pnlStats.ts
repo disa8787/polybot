@@ -10,7 +10,14 @@ export interface PNLStats {
   pnlPercent: number
 }
 
-export function computePNLStats(history: ResolvedBet[]): PNLStats {
+/**
+ * Compute PNL stats. PNL % is based on totalDeposited (not bet amounts).
+ * If totalDeposited is 0, pnlPercent is 0 to avoid division by zero.
+ */
+export function computePNLStats(
+  history: ResolvedBet[],
+  totalDeposited: number
+): PNLStats {
   if (!history.length) {
     return {
       totalBets: 0,
@@ -34,7 +41,8 @@ export function computePNLStats(history: ResolvedBet[]): PNLStats {
   }
 
   const netPnL = totalReturned - totalWagered
-  const pnlPercent = totalWagered > 0 ? (netPnL / totalWagered) * 100 : 0
+  const pnlPercent =
+    totalDeposited > 0 ? (netPnL / totalDeposited) * 100 : 0
 
   return {
     totalBets: history.length,

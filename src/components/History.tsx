@@ -6,11 +6,11 @@ import { PNLModal } from './PNLModal'
 import type { ResolvedBet } from '../types'
 
 export function History() {
-  const { history } = useApp()
+  const { history, totalDeposited } = useApp()
   const [showPNLModal, setShowPNLModal] = useState(false)
   const [highlightedTrade, setHighlightedTrade] = useState<ResolvedBet | null>(null)
 
-  const stats = computePNLStats(history)
+  const stats = computePNLStats(history, totalDeposited)
 
   const openOverallPNL = () => {
     setHighlightedTrade(null)

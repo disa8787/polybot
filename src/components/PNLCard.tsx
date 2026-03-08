@@ -98,7 +98,7 @@ export function PNLCard({ stats, highlightedTrade }: PNLCardProps) {
           >
             {stats.netPnL >= 0 ? '+' : ''}${stats.netPnL.toFixed(2)}
           </p>
-          {stats.totalWagered > 0 && (
+          {(stats.netPnL !== 0 || stats.pnlPercent !== 0) && (
             <p
               className="text-sm mt-0.5 tabular-nums"
               style={{ color: accentColor, opacity: 0.9 }}

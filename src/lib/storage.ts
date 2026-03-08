@@ -17,6 +17,7 @@ function getStorageKey(suffix: string): string {
 export const STORAGE_KEYS = {
   balance: () => getStorageKey('balance'),
   history: () => getStorageKey('history'),
+  totalDeposited: () => getStorageKey('deposited'),
 } as const
 
 export function loadBalance(): number | null {
@@ -68,5 +69,22 @@ export function saveHistory(history: Array<{
 }>): void {
   try {
     localStorage.setItem(STORAGE_KEYS.history(), JSON.stringify(history))
+  } catch {}
+}
+
+export function loadTotalDeposited(): number | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.totalDeposited())
+    if (raw == null) return null
+    const n = parseFloat(raw)
+    return Number.isFinite(n) && n >= 0 ? n : null
+  } catch {
+    return null
+  }
+}
+
+export function saveTotalDeposited(value: number): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.totalDeposited(), String(Math.max(0, value)))
   } catch {}
 }

@@ -7,6 +7,7 @@ const ODDS_MULTIPLIER = 1.9
 
 type AppState = {
   balance: number
+  totalDeposited: number
   pendingBets: PendingBet[]
   activeBets: ActiveBet[]
   history: ResolvedBet[]
@@ -22,9 +23,11 @@ type Action =
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'DEPOSIT': {
+      const amount = action.payload
       return {
         ...state,
-        balance: state.balance + action.payload,
+        balance: state.balance + amount,
+        totalDeposited: state.totalDeposited + amount,
       }
     }
     case 'PLACE_PENDING_BET': {
@@ -96,6 +99,7 @@ function reducer(state: AppState, action: Action): AppState {
 
 type AppContextValue = {
   balance: number
+  totalDeposited: number
   pendingBets: PendingBet[]
   activeBets: ActiveBet[]
   history: ResolvedBet[]
@@ -110,8 +114,10 @@ const AppContext = createContext<AppContextValue | null>(null)
 function getInitialState(): AppState {
   const balance = storage.loadBalance()
   const history = storage.loadHistory()
+  const totalDeposited = storage.loadTotalDeposited()
   return {
     balance: balance ?? INITIAL_BALANCE,
+    totalDeposited: totalDeposited ?? 0,
     pendingBets: [],
     activeBets: [],
     history: (history as ResolvedBet[]) ?? [],
@@ -129,6 +135,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     storage.saveHistory(state.history)
   }, [state.history])
+
+  useEffect(() => {
+    storage.saveTotalDeposited(state.totalDeposited)
+  }, [state.totalDeposited])
 
   const placePendingBet = useCallback((bet: Omit<PendingBet, 'id'>): boolean => {
     if (state.balance < bet.amount) return false
@@ -153,6 +163,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider
       value={{
         balance: state.balance,
+        totalDeposited: state.totalDeposited,
         pendingBets: state.pendingBets,
         activeBets: state.activeBets,
         history: state.history,
