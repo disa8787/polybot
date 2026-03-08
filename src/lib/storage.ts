@@ -1,28 +1,18 @@
 /**
  * Persistent storage keys scoped by Telegram user ID.
- * Uses 'dev' when running outside Telegram.
+ * userId must be passed explicitly; use getUserIdForStorage() from telegram lib
+ * when called from context that has access to Telegram.
  */
 
 const PREFIX = 'polybot'
 
-function getStorageKey(suffix: string): string {
-  if (typeof window === 'undefined') return `${PREFIX}_${suffix}_dev`
-  // Telegram Web App script sets window.Telegram
-  const tg = (window as any).Telegram
-  const userId = tg?.WebApp?.initDataUnsafe?.user?.id
-  const scope = userId != null ? String(userId) : 'dev'
-  return `${PREFIX}_${suffix}_${scope}`
+export function getStorageKey(suffix: string, userIdScope: string): string {
+  return `${PREFIX}_${suffix}_${userIdScope}`
 }
 
-export const STORAGE_KEYS = {
-  balance: () => getStorageKey('balance'),
-  history: () => getStorageKey('history'),
-  totalDeposited: () => getStorageKey('deposited'),
-} as const
-
-export function loadBalance(): number | null {
+export function loadBalance(userIdScope: string): number | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.balance())
+    const raw = localStorage.getItem(getStorageKey('balance', userIdScope))
     if (raw == null) return null
     const n = parseFloat(raw)
     return Number.isFinite(n) ? n : null
@@ -31,13 +21,13 @@ export function loadBalance(): number | null {
   }
 }
 
-export function saveBalance(value: number): void {
+export function saveBalance(userIdScope: string, value: number): void {
   try {
-    localStorage.setItem(STORAGE_KEYS.balance(), String(value))
+    localStorage.setItem(getStorageKey('balance', userIdScope), String(value))
   } catch {}
 }
 
-export function loadHistory(): Array<{
+export function loadHistory(userIdScope: string): Array<{
   id: string
   type: 'yes' | 'no'
   amount: number
@@ -48,7 +38,7 @@ export function loadHistory(): Array<{
   resolvedAt: number
 }> | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.history())
+    const raw = localStorage.getItem(getStorageKey('history', userIdScope))
     if (raw == null) return null
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed : null
@@ -57,7 +47,7 @@ export function loadHistory(): Array<{
   }
 }
 
-export function saveHistory(history: Array<{
+export function saveHistory(userIdScope: string, history: Array<{
   id: string
   type: 'yes' | 'no'
   amount: number
@@ -68,13 +58,13 @@ export function saveHistory(history: Array<{
   resolvedAt: number
 }>): void {
   try {
-    localStorage.setItem(STORAGE_KEYS.history(), JSON.stringify(history))
+    localStorage.setItem(getStorageKey('history', userIdScope), JSON.stringify(history))
   } catch {}
 }
 
-export function loadTotalDeposited(): number | null {
+export function loadTotalDeposited(userIdScope: string): number | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.totalDeposited())
+    const raw = localStorage.getItem(getStorageKey('deposited', userIdScope))
     if (raw == null) return null
     const n = parseFloat(raw)
     return Number.isFinite(n) && n >= 0 ? n : null
@@ -83,8 +73,8 @@ export function loadTotalDeposited(): number | null {
   }
 }
 
-export function saveTotalDeposited(value: number): void {
+export function saveTotalDeposited(userIdScope: string, value: number): void {
   try {
-    localStorage.setItem(STORAGE_KEYS.totalDeposited(), String(Math.max(0, value)))
+    localStorage.setItem(getStorageKey('deposited', userIdScope), String(Math.max(0, value)))
   } catch {}
 }

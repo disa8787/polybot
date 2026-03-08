@@ -20,21 +20,21 @@ export function DepositModal({ onClose, onDeposit }: DepositModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 font-mono"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm rounded-xl border border-gray-800 bg-[#141414] p-4 shadow-xl"
+        className="w-full max-w-sm rounded-none border border-gray-800 bg-black p-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-sm font-semibold text-white mb-3">Deposit</h3>
+        <h3 className="text-sm font-mono text-cyan-400 mb-3">[ DEPOSIT ]</h3>
         <div className="flex flex-wrap gap-2 mb-3">
           {QUICK_AMOUNTS.map((amt) => (
             <button
               key={amt}
               type="button"
               onClick={() => onDeposit(amt)}
-              className="px-3 py-2 rounded-lg bg-gray-800 text-sm text-white hover:bg-gray-700"
+              className="px-3 py-2 rounded-none border border-gray-700 bg-black text-sm text-gray-400 hover:border-green-500 hover:text-green-500"
             >
               ${amt}
             </button>
@@ -48,11 +48,11 @@ export function DepositModal({ onClose, onDeposit }: DepositModalProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Custom amount"
-            className="flex-1 px-3 py-2 rounded-lg bg-[#1a1a1a] border border-gray-700 text-white placeholder-gray-500 text-sm"
+            className="flex-1 px-3 py-2 rounded-none border border-gray-800 bg-black text-gray-400 placeholder-gray-600 text-sm font-mono"
           />
           <button
             type="submit"
-            className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium"
+            className="px-4 py-2 rounded-none border border-green-500 text-green-500 text-sm font-mono hover:bg-green-500/10"
           >
             Add
           </button>
@@ -60,7 +60,7 @@ export function DepositModal({ onClose, onDeposit }: DepositModalProps) {
         <button
           type="button"
           onClick={onClose}
-          className="mt-3 w-full py-2 text-xs text-gray-500 hover:text-gray-400"
+          className="mt-3 w-full py-2 text-xs font-mono text-gray-500 hover:text-gray-400"
         >
           Cancel
         </button>

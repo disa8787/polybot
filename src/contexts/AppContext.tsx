@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useReducer } from 'react'
 import type { ActiveBet, PendingBet, ResolvedBet } from '../types'
 import * as storage from '../lib/storage'
+import { useTelegram } from './TelegramContext'
 
 const INITIAL_BALANCE = 0
 const ODDS_MULTIPLIER = 1.9
@@ -19,6 +20,8 @@ type Action =
   | { type: 'DEPOSIT'; payload: number }
   | { type: 'ROUND_END'; payload: { closePrice: number; newMark: number } }
   | { type: 'ADD_TO_HISTORY'; payload: ResolvedBet }
+  | { type: 'HYDRATE'; payload: Pick<AppState, 'balance' | 'totalDeposited' | 'history'> }
+  | { type: 'BOT_PNL'; payload: number }
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -92,6 +95,20 @@ function reducer(state: AppState, action: Action): AppState {
         history: [action.payload, ...state.history],
       }
     }
+    case 'BOT_PNL': {
+      return {
+        ...state,
+        balance: Math.max(0, state.balance + action.payload),
+      }
+    }
+    case 'HYDRATE': {
+      return {
+        ...state,
+        balance: action.payload.balance,
+        totalDeposited: action.payload.totalDeposited,
+        history: action.payload.history,
+      }
+    }
     default:
       return state
   }
@@ -107,38 +124,59 @@ type AppContextValue = {
   cancelPendingBet: (betId: string) => void
   deposit: (amount: number) => void
   onRoundEnd: (closePrice: number, newMark: number) => void
+  applyBotPnL: (amount: number) => void
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
 
-function getInitialState(): AppState {
-  const balance = storage.loadBalance()
-  const history = storage.loadHistory()
-  const totalDeposited = storage.loadTotalDeposited()
-  return {
-    balance: balance ?? INITIAL_BALANCE,
-    totalDeposited: totalDeposited ?? 0,
-    pendingBets: [],
-    activeBets: [],
-    history: (history as ResolvedBet[]) ?? [],
-  }
+const DEFAULT_STATE: AppState = {
+  balance: INITIAL_BALANCE,
+  totalDeposited: 0,
+  pendingBets: [],
+  activeBets: [],
+  history: [],
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, getInitialState)
+  const { userId, isReady } = useTelegram()
+  const [state, dispatch] = useReducer(reducer, DEFAULT_STATE)
+  const hasHydrated = React.useRef(false)
 
-  // Persist balance and history when they change
+  // Hydrate from storage ONLY after Telegram is ready and we have a firm userId scope
   useEffect(() => {
-    storage.saveBalance(state.balance)
-  }, [state.balance])
+    if (!isReady || hasHydrated.current) return
+    const scope = userId ?? 'dev'
+    const balance = storage.loadBalance(scope)
+    const history = storage.loadHistory(scope)
+    const totalDeposited = storage.loadTotalDeposited(scope)
+    dispatch({
+      type: 'HYDRATE',
+      payload: {
+        balance: balance ?? INITIAL_BALANCE,
+        totalDeposited: totalDeposited ?? 0,
+        history: (history as ResolvedBet[]) ?? [],
+      },
+    })
+    hasHydrated.current = true
+  }, [isReady, userId])
+
+  const scope = (userId ?? 'dev')
+
+  // Persist when state changes (only after hydration)
+  useEffect(() => {
+    if (!hasHydrated.current) return
+    storage.saveBalance(scope, state.balance)
+  }, [scope, state.balance])
 
   useEffect(() => {
-    storage.saveHistory(state.history)
-  }, [state.history])
+    if (!hasHydrated.current) return
+    storage.saveHistory(scope, state.history)
+  }, [scope, state.history])
 
   useEffect(() => {
-    storage.saveTotalDeposited(state.totalDeposited)
-  }, [state.totalDeposited])
+    if (!hasHydrated.current) return
+    storage.saveTotalDeposited(scope, state.totalDeposited)
+  }, [scope, state.totalDeposited])
 
   const placePendingBet = useCallback((bet: Omit<PendingBet, 'id'>): boolean => {
     if (state.balance < bet.amount) return false
@@ -159,6 +197,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'ROUND_END', payload: { closePrice, newMark } })
   }, [])
 
+  const applyBotPnL = useCallback((amount: number) => {
+    dispatch({ type: 'BOT_PNL', payload: amount })
+  }, [])
+
   return (
     <AppContext.Provider
       value={{
@@ -171,6 +213,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         cancelPendingBet,
         deposit,
         onRoundEnd,
+        applyBotPnL,
       }}
     >
       {children}
