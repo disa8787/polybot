@@ -78,3 +78,36 @@ export function saveTotalDeposited(userIdScope: string, value: number): void {
     localStorage.setItem(getStorageKey('deposited', userIdScope), String(Math.max(0, value)))
   } catch {}
 }
+
+/** Bot session: equity curve, PnL, orders, wins. Rebuilds chart on reload. */
+export interface BotSessionData {
+  equityData: Array<{ time: number; value: number }>
+  sessionTotalProfit: number
+  sessionOrders: number
+  sessionWins: number
+  sessionStartingBalance: number
+}
+
+export function loadBotSession(userIdScope: string): BotSessionData | null {
+  try {
+    const raw = localStorage.getItem(getStorageKey('bot_session', userIdScope))
+    if (raw == null) return null
+    const parsed = JSON.parse(raw) as BotSessionData
+    if (!parsed || !Array.isArray(parsed.equityData)) return null
+    return {
+      equityData: parsed.equityData,
+      sessionTotalProfit: Number(parsed.sessionTotalProfit) || 0,
+      sessionOrders: Number(parsed.sessionOrders) || 0,
+      sessionWins: Number(parsed.sessionWins) || 0,
+      sessionStartingBalance: Number(parsed.sessionStartingBalance) || 0,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function saveBotSession(userIdScope: string, data: BotSessionData): void {
+  try {
+    localStorage.setItem(getStorageKey('bot_session', userIdScope), JSON.stringify(data))
+  } catch {}
+}

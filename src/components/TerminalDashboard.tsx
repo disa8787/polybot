@@ -140,7 +140,11 @@ export function TerminalDashboard() {
 
         {/* Equity Curve */}
         <div className="h-[150px] border-t border-gray-800 p-2">
-          <EquityChart data={equityData} height={134} />
+          <EquityChart
+          data={equityData}
+          sessionStartingBalance={sessionStartingBalance}
+          height={134}
+        />
         </div>
       </div>
     </div>

@@ -29,17 +29,26 @@ export function initTelegram(): void {
 }
 
 /**
- * Extract user from initDataUnsafe. Returns null if not available.
+ * Get user ID from Telegram WebApp. Standard way - no URL params needed.
+ * Uses: window.Telegram.WebApp.initDataUnsafe?.user?.id
+ */
+export function getUserId(): number | null {
+  if (typeof window === 'undefined') return null
+  const tg = (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram
+  const userId = tg?.WebApp?.initDataUnsafe?.user?.id
+  return typeof userId === 'number' ? userId : null
+}
+
+/**
+ * Extract full user from initDataUnsafe. Returns null if not available.
  */
 export function getTelegramUser(): TelegramUser | null {
-  if (typeof window === 'undefined') return null
-  const tg = (window as any).Telegram
-  if (!tg?.WebApp?.initDataUnsafe) return null
-  const raw = tg.WebApp.initDataUnsafe.user
-  if (!raw || typeof raw !== 'object') return null
-  const u = raw as Record<string, unknown>
-  const id = typeof u.id === 'number' ? u.id : null
+  const id = getUserId()
   if (id == null) return null
+  const tg = (window as any).Telegram
+  const raw = tg?.WebApp?.initDataUnsafe?.user
+  if (!raw || typeof raw !== 'object') return { id }
+  const u = raw as Record<string, unknown>
   return {
     id,
     first_name: typeof u.first_name === 'string' ? u.first_name : undefined,
@@ -55,6 +64,6 @@ export function getTelegramUser(): TelegramUser | null {
  * Get storage scope: userId string or 'dev' when no Telegram user.
  */
 export function getUserIdForStorage(): string {
-  const user = getTelegramUser()
-  return user != null ? String(user.id) : 'dev'
+  const userId = getUserId()
+  return userId != null ? String(userId) : 'dev'
 }

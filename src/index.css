@@ -19,3 +19,19 @@ body {
 body {
   overscroll-behavior: none;
 }
+
+/* Live Feed: top fade mask - old logs vanish into darkness */
+.live-feed-scroll {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black 24px,
+    black 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black 24px,
+    black 100%
+  );
+}
