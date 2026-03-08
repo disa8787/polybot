@@ -33,7 +33,9 @@ export function BTCChart({
       layout: {
         background: { color: '#0f0f0f' },
         textColor: '#9ca3af',
+        attributionLogo: false,
       },
+      watermark: { visible: false },
       grid: {
         vertLines: { color: '#1f2937' },
         horzLines: { color: '#1f2937' },
