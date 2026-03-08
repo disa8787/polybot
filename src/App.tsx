@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { BarChart3, Clock, History } from 'lucide-react'
+import { DepositModal } from './components/DepositModal'
 import { Header } from './components/Header'
 import { BTCChart } from './components/BTCChart'
 import { BettingCard } from './components/BettingCard'
@@ -8,16 +9,19 @@ import { History as HistoryTab } from './components/History'
 import { LivePriceDisplay } from './components/LivePriceDisplay'
 import { ActivityFeed } from './components/ActivityFeed'
 import { useApp } from './contexts/AppContext'
-import { usePriceStream } from './hooks/usePriceStream'
+import { usePriceStream, type Timeframe } from './hooks/usePriceStream'
 import { useRoundLogic } from './hooks/useRoundLogic'
 import { useActivityFeed } from './hooks/useActivityFeed'
+import { TimeframeToggle } from './components/TimeframeToggle'
 
 type Tab = 'trade' | 'active' | 'history'
 
 function App() {
-  const { onRoundEnd, activeBets, pendingBets } = useApp()
+  const { onRoundEnd, activeBets, pendingBets, deposit } = useApp()
+  const [showDeposit, setShowDeposit] = useState(false)
   const { items: activityItems, triggerActivityBatch } = useActivityFeed()
   const [tab, setTab] = useState<Tab>('trade')
+  const [timeframe, setTimeframe] = useState<Timeframe>('5m')
 
   const handleRoundEnd = useCallback(
     (closePrice: number, newMark: number) => {
@@ -32,15 +36,24 @@ function App() {
     subscribeToTick,
     livePriceRef,
     isConnected,
-  } = usePriceStream()
+  } = usePriceStream(timeframe)
 
-  const { secondsLeft, mark } = useRoundLogic(livePriceRef, handleRoundEnd, isConnected)
+  const { secondsLeft, mark } = useRoundLogic(livePriceRef, handleRoundEnd, timeframe, isConnected)
 
   const totalBets = activeBets.length + pendingBets.length
 
   return (
     <div className="min-h-dvh flex flex-col bg-[#0f0f0f]">
-      <HeaderWithBalance />
+      <HeaderWithBalance onDeposit={() => setShowDeposit(true)} />
+      {showDeposit && (
+        <DepositModal
+          onClose={() => setShowDeposit(false)}
+          onDeposit={(amt) => {
+            deposit(amt)
+            setShowDeposit(false)
+          }}
+        />
+      )}
       {/* Current price banner */}
       <div className="px-4 py-2 flex items-center justify-between bg-[#141414] border-b border-gray-800">
         <span className="text-sm text-gray-400">BTC/USD</span>
@@ -52,7 +65,11 @@ function App() {
 
       {tab === 'trade' && (
         <div className="flex-1 overflow-auto px-4 py-3 space-y-4">
+          <div className="flex items-center justify-end">
+            <TimeframeToggle value={timeframe} onChange={setTimeframe} />
+          </div>
           <BTCChart
+            key={timeframe}
             initialData={initialData}
             subscribeToTick={subscribeToTick}
             mark={mark}
@@ -104,9 +121,9 @@ function App() {
   )
 }
 
-function HeaderWithBalance() {
+function HeaderWithBalance({ onDeposit }: { onDeposit: () => void }) {
   const { balance } = useApp()
-  return <Header balance={balance} />
+  return <Header balance={balance} onDeposit={onDeposit} />
 }
 
 function TabButton({

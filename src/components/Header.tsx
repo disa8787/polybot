@@ -1,7 +1,12 @@
-import { DollarSign, TrendingUp } from 'lucide-react'
+import { Wallet } from 'lucide-react'
 import WebApp from '@twa-dev/sdk'
 
-export function Header({ balance }: { balance: number }) {
+interface HeaderProps {
+  balance: number
+  onDeposit: () => void
+}
+
+export function Header({ balance, onDeposit }: HeaderProps) {
   const user = WebApp.initDataUnsafe?.user
 
   return (
@@ -20,22 +25,22 @@ export function Header({ balance }: { balance: number }) {
             </span>
           </div>
         )}
-        <div>
-          <p className="text-xs text-gray-400">
-            {user?.first_name || user?.username || 'Player'}
-          </p>
-          <p className="flex items-center gap-1 text-sm font-bold text-emerald-400">
-            <DollarSign className="w-4 h-4" />
-            {balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-        </div>
-      </div>
-      <div className="text-right">
-        <p className="text-xs text-gray-400 flex items-center justify-end gap-1">
-          <TrendingUp className="w-3 h-3" />
-          Virtual Balance
+        <p className="text-xs text-gray-400">
+          {user?.first_name || user?.username || 'Player'}
         </p>
-        <p className="text-xs text-gray-500">No real money</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-bold font-mono tabular-nums text-emerald-400">
+          ${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </p>
+        <button
+          type="button"
+          onClick={onDeposit}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium active:scale-95 transition-transform"
+        >
+          <Wallet className="w-3.5 h-3.5" />
+          Deposit
+        </button>
       </div>
     </header>
   )

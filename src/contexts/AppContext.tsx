@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useReducer } from 'react'
 import type { ActiveBet, PendingBet, ResolvedBet } from '../types'
 
-const INITIAL_BALANCE = 1000
+const INITIAL_BALANCE = 0
 const ODDS_MULTIPLIER = 1.9
 
 type AppState = {
@@ -13,11 +13,18 @@ type AppState = {
 
 type Action =
   | { type: 'PLACE_PENDING_BET'; payload: PendingBet }
+  | { type: 'DEPOSIT'; payload: number }
   | { type: 'ROUND_END'; payload: { closePrice: number; newMark: number } }
   | { type: 'ADD_TO_HISTORY'; payload: ResolvedBet }
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
+    case 'DEPOSIT': {
+      return {
+        ...state,
+        balance: state.balance + action.payload,
+      }
+    }
     case 'PLACE_PENDING_BET': {
       const bet = action.payload
       const newBalance = state.balance - bet.amount
@@ -78,13 +85,13 @@ function reducer(state: AppState, action: Action): AppState {
   }
 }
 
-/** When round ends, we need to set the mark on the newly activated bets */
 type AppContextValue = {
   balance: number
   pendingBets: PendingBet[]
   activeBets: ActiveBet[]
   history: ResolvedBet[]
   placePendingBet: (bet: Omit<PendingBet, 'id'>) => boolean
+  deposit: (amount: number) => void
   onRoundEnd: (closePrice: number, newMark: number) => void
 }
 
@@ -105,6 +112,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return true
   }, [state.balance])
 
+  const deposit = useCallback((amount: number) => {
+    if (amount > 0) dispatch({ type: 'DEPOSIT', payload: amount })
+  }, [])
+
   const onRoundEnd = useCallback((closePrice: number, newMark: number) => {
     dispatch({ type: 'ROUND_END', payload: { closePrice, newMark } })
   }, [])
@@ -117,6 +128,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         activeBets: state.activeBets,
         history: state.history,
         placePendingBet,
+        deposit,
         onRoundEnd,
       }}
     >

@@ -1,45 +1,32 @@
 /**
- * Strict 5-minute round logic for Polymarket-style prediction market.
- * Rounds are globally aligned (e.g. 12:00:00 - 12:05:00, 12:05:00 - 12:10:00).
- * Mark = BTC price captured at the exact moment a round starts.
+ * Round logic synced with chart timeframe (1m or 5m).
+ * Mark = BTC price at round start.
  */
 
 import { useEffect, useRef, useState } from 'react'
+import type { Timeframe } from './usePriceStream'
 
-const FIVE_MIN_MS = 5 * 60 * 1000
+const INTERVAL_MS: Record<Timeframe, number> = {
+  '1m': 60 * 1000,
+  '5m': 5 * 60 * 1000,
+}
 
-/** Get the Unix timestamp (ms) when the current 5m round ends */
-export function getRoundEndTime(): number {
+function getRoundEndTime(intervalMs: number): number {
   const now = Date.now()
-  const aligned = Math.floor(now / FIVE_MIN_MS) * FIVE_MIN_MS
-  return aligned + FIVE_MIN_MS
+  const aligned = Math.floor(now / intervalMs) * intervalMs
+  return aligned + intervalMs
 }
 
-/** Get the Unix timestamp (ms) when the current 5m round started */
-export function getRoundStartTime(): number {
-  const now = Date.now()
-  return Math.floor(now / FIVE_MIN_MS) * FIVE_MIN_MS
-}
-
-export interface RoundState {
-  roundEndTime: number
-  secondsLeft: number
-  mark: number | null
-}
-
-/**
- * Tracks round boundaries, countdown, and Mark.
- * Calls onRoundEnd(closePrice, newMark) when the round ends so the parent can resolve bets.
- * newMark = closePrice (price at round boundary becomes next round's strike).
- */
 export function useRoundLogic(
   livePriceRef: React.MutableRefObject<number | null>,
   onRoundEnd: (closePrice: number, newMark: number) => void,
+  timeframe: Timeframe,
   isConnected?: boolean
 ) {
-  const [roundEndTime, setRoundEndTime] = useState(getRoundEndTime)
+  const intervalMs = INTERVAL_MS[timeframe]
+  const [roundEndTime, setRoundEndTime] = useState(() => getRoundEndTime(intervalMs))
   const [secondsLeft, setSecondsLeft] = useState(() =>
-    Math.max(0, Math.floor((getRoundEndTime() - Date.now()) / 1000))
+    Math.max(0, Math.floor((getRoundEndTime(intervalMs) - Date.now()) / 1000))
   )
   const [mark, setMark] = useState<number | null>(null)
   const hasInitializedMark = useRef(false)
@@ -47,7 +34,12 @@ export function useRoundLogic(
   const onRoundEndRef = useRef(onRoundEnd)
   onRoundEndRef.current = onRoundEnd
 
-  // Initialize Mark when we first get a price (after WebSocket connects)
+  // Reset mark init when timeframe changes (new round cycle)
+  useEffect(() => {
+    hasInitializedMark.current = false
+    setMark(null)
+  }, [timeframe])
+
   useEffect(() => {
     if (hasInitializedMark.current || mark != null) return
     if (isConnected === false) return
@@ -56,25 +48,22 @@ export function useRoundLogic(
       hasInitializedMark.current = true
       setMark(price)
     }
-  }, [livePriceRef, mark, isConnected])
+  }, [livePriceRef, mark, isConnected, timeframe])
 
-  // Countdown tick
   useEffect(() => {
     const tick = () => {
-      const end = getRoundEndTime()
+      const end = getRoundEndTime(intervalMs)
       const left = Math.max(0, Math.floor((end - Date.now()) / 1000))
       setRoundEndTime(end)
       setSecondsLeft(left)
 
-      // Round just ended (fire once per boundary)
       if (left === 0) {
-        const end = getRoundEndTime()
         if (end !== lastFiredRoundEnd.current) {
           lastFiredRoundEnd.current = end
           const closePrice = livePriceRef.current ?? 0
           if (closePrice > 0) {
-            onRoundEndRef.current(closePrice, closePrice) // newMark = closePrice
-            setMark(closePrice) // New Mark for next round
+            onRoundEndRef.current(closePrice, closePrice)
+            setMark(closePrice)
           }
         }
       }
@@ -82,7 +71,7 @@ export function useRoundLogic(
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [livePriceRef])
+  }, [livePriceRef, intervalMs])
 
   return { roundEndTime, secondsLeft, mark }
 }
