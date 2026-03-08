@@ -7,11 +7,10 @@ import { DepositModal } from './DepositModal'
 import { Header } from './Header'
 
 export function TerminalDashboard() {
-  const { balance, deposit } = useApp()
+  const { balance, deposit, apiPnlToday, apiPnlPercent } = useApp()
   const {
     isRunning,
     consoleLogs,
-    sessionTotalProfit,
     sessionOrders,
     sessionStartingBalance,
     equityData,
@@ -43,10 +42,8 @@ export function TerminalDashboard() {
     return () => clearInterval(id)
   }, [])
 
-  const pnlPercent =
-    sessionStartingBalance > 0
-      ? (sessionTotalProfit / sessionStartingBalance) * 100
-      : 0
+  const displayPnl = apiPnlToday
+  const displayPnlPercent = apiPnlPercent
 
   return (
     <div className="h-dvh flex flex-col overflow-hidden bg-black text-gray-500">
@@ -87,15 +84,13 @@ export function TerminalDashboard() {
           </div>
           <div
             className={`text-lg font-mono tabular-nums ${
-              sessionTotalProfit >= 0 ? 'text-green-500' : 'text-red-500'
+              displayPnl >= 0 ? 'text-green-500' : 'text-red-500'
             }`}
           >
-            {sessionTotalProfit >= 0 ? '+' : ''}${sessionTotalProfit.toFixed(2)}
-            {sessionStartingBalance > 0 && (
-              <span className="text-sm ml-1 opacity-80">
-                ({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(1)}%)
-              </span>
-            )}
+            {displayPnl >= 0 ? '+' : ''}${displayPnl.toFixed(2)}
+            <span className="text-sm ml-1 opacity-80">
+              ({displayPnlPercent >= 0 ? '+' : ''}{displayPnlPercent.toFixed(1)}%)
+            </span>
           </div>
         </div>
         <div>

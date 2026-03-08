@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useReducer } from 'react'
 import type { ActiveBet, PendingBet, ResolvedBet } from '../types'
+import * as api from '../lib/api'
 import * as storage from '../lib/storage'
 import { useTelegram } from './TelegramContext'
 
@@ -9,6 +10,8 @@ const ODDS_MULTIPLIER = 1.9
 type AppState = {
   balance: number
   totalDeposited: number
+  apiPnlToday: number
+  apiPnlPercent: number
   pendingBets: PendingBet[]
   activeBets: ActiveBet[]
   history: ResolvedBet[]
@@ -20,7 +23,8 @@ type Action =
   | { type: 'DEPOSIT'; payload: number }
   | { type: 'ROUND_END'; payload: { closePrice: number; newMark: number } }
   | { type: 'ADD_TO_HISTORY'; payload: ResolvedBet }
-  | { type: 'HYDRATE'; payload: Pick<AppState, 'balance' | 'totalDeposited' | 'history'> }
+  | { type: 'HYDRATE'; payload: Pick<AppState, 'balance' | 'totalDeposited' | 'history' | 'apiPnlToday' | 'apiPnlPercent'> }
+  | { type: 'API_SYNC'; payload: { balance: number; pnl_today: number; pnl_percent: number } }
   | { type: 'BOT_PNL'; payload: number }
 
 function reducer(state: AppState, action: Action): AppState {
@@ -107,6 +111,16 @@ function reducer(state: AppState, action: Action): AppState {
         balance: action.payload.balance,
         totalDeposited: action.payload.totalDeposited,
         history: action.payload.history,
+        apiPnlToday: action.payload.apiPnlToday ?? 0,
+        apiPnlPercent: action.payload.apiPnlPercent ?? 0,
+      }
+    }
+    case 'API_SYNC': {
+      return {
+        ...state,
+        balance: action.payload.balance,
+        apiPnlToday: action.payload.pnl_today,
+        apiPnlPercent: action.payload.pnl_percent,
       }
     }
     default:
@@ -117,6 +131,8 @@ function reducer(state: AppState, action: Action): AppState {
 type AppContextValue = {
   balance: number
   totalDeposited: number
+  apiPnlToday: number
+  apiPnlPercent: number
   pendingBets: PendingBet[]
   activeBets: ActiveBet[]
   history: ResolvedBet[]
@@ -132,6 +148,8 @@ const AppContext = createContext<AppContextValue | null>(null)
 const DEFAULT_STATE: AppState = {
   balance: INITIAL_BALANCE,
   totalDeposited: 0,
+  apiPnlToday: 0,
+  apiPnlPercent: 0,
   pendingBets: [],
   activeBets: [],
   history: [],
@@ -142,31 +160,61 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, DEFAULT_STATE)
   const hasHydrated = React.useRef(false)
 
-  // Hydrate from storage ONLY after Telegram is ready and we have a firm userId scope
+  // Hydrate from Bot API (source of truth) on load. Uses initDataUnsafe.user.id via userId.
   useEffect(() => {
     if (!isReady || hasHydrated.current) return
     const scope = userId ?? 'dev'
-    const balance = storage.loadBalance(scope)
-    const history = storage.loadHistory(scope)
-    const totalDeposited = storage.loadTotalDeposited(scope)
-    dispatch({
-      type: 'HYDRATE',
-      payload: {
-        balance: balance ?? INITIAL_BALANCE,
-        totalDeposited: totalDeposited ?? 0,
-        history: (history as ResolvedBet[]) ?? [],
-      },
-    })
-    hasHydrated.current = true
+    const history = (storage.loadHistory(scope) as ResolvedBet[]) ?? []
+    const totalDeposited = storage.loadTotalDeposited(scope) ?? 0
+
+    const hydrate = (balance: number, apiPnlToday = 0, apiPnlPercent = 0) => {
+      dispatch({
+        type: 'HYDRATE',
+        payload: { balance, totalDeposited, history, apiPnlToday, apiPnlPercent },
+      })
+      hasHydrated.current = true
+    }
+
+    if (userId != null) {
+      api.syncUserData(Number(userId))
+        .then((data) => {
+          if (data != null) {
+            const balance = Number.isFinite(Number(data.balance)) ? data.balance : (storage.loadBalance(scope) ?? INITIAL_BALANCE)
+            const pnlToday: number = typeof data.pnl_today === 'number' && Number.isFinite(data.pnl_today) ? data.pnl_today : 0
+            const pnlPercent: number = typeof data.pnl_percent === 'number' && Number.isFinite(data.pnl_percent) ? data.pnl_percent : 0
+            dispatch({
+              type: 'HYDRATE',
+              payload: {
+                balance,
+                totalDeposited,
+                history,
+                apiPnlToday: pnlToday,
+                apiPnlPercent: pnlPercent,
+              },
+            })
+            hasHydrated.current = true
+          } else {
+            hydrate(storage.loadBalance(scope) ?? INITIAL_BALANCE)
+          }
+        })
+        .catch(() => {
+          hydrate(storage.loadBalance(scope) ?? INITIAL_BALANCE)
+        })
+    } else {
+      hydrate(storage.loadBalance(scope) ?? INITIAL_BALANCE)
+    }
   }, [isReady, userId])
 
   const scope = (userId ?? 'dev')
 
-  // Persist when state changes (only after hydration)
+  // Persist to localStorage and sync to Bot API when balance changes (only after hydration)
   useEffect(() => {
     if (!hasHydrated.current) return
     storage.saveBalance(scope, state.balance)
-  }, [scope, state.balance])
+    if (userId != null) {
+      api.updateUserData(Number(userId), { balance: state.balance }).catch(() => {})
+    }
+  }, [scope, state.balance, userId])
 
   useEffect(() => {
     if (!hasHydrated.current) return
@@ -206,6 +254,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         balance: state.balance,
         totalDeposited: state.totalDeposited,
+        apiPnlToday: state.apiPnlToday,
+        apiPnlPercent: state.apiPnlPercent,
         pendingBets: state.pendingBets,
         activeBets: state.activeBets,
         history: state.history,
